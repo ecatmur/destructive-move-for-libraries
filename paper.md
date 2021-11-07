@@ -81,7 +81,7 @@ Alternatively if this is considered excessively unsafe, we suggest a syntax allo
 
 The special member functions are declared as defaulted or deleted as with the move constructor and move assignment operator; similarly for triviality.
 
-When defined or declared as defaulted, the default implementation for class types is memberwise. Since the default prvalue conversion operator is noexcept, there is no need to handle cleanup.
+When defined or declared as defaulted, the default implementation for class types is memberwise. Since the default prvalue conversion operator is noexcept, there is no need to handle cleanup; `noexcept(true)` is ignored (or possibly ill-formed?).
 
 For scalars, the builtin behavior is to return or assign the source value respectively; the source value is not altered.
 
