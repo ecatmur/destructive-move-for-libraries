@@ -1,4 +1,4 @@
-# Destructive conversion
+# Destructive member functions
 
 ## 0. Paper history
 
@@ -7,7 +7,7 @@
 
 ## 1. Abstract
 
-We propose a mechanism to designate conversion operators as *destructive*; that is, when called on a prvalue object they are *assumed* to take responsibility for destructing that object; plus additional special member functions, enabling *destructive move* operations that are efficient, safe and composable.
+We propose a mechanism to designate member functions (including conversion operators) as *destructive*; that is, when called on a prvalue object they are *assumed* to take responsibility for destructing that object; plus additional special member functions, enabling *destructive move* operations that are efficient, safe and composable.
 
 ## 2. Motivation
 
@@ -37,15 +37,16 @@ Finally, such a solution should work with other library facilities, such as `opt
 
 ### 3.1. Overview
 
-The proposal is that a conversion operator may be designated *destructive* by the `~` sigil, appearing in place of cvref qualification:
+The proposal is that a member function (possibly a conversion operator) may be designated *destructive* by the `~` sigil, appearing in place of cvref qualification:
 
+    int S::destructure() ~;
     S::operator int() ~;
 
 A destructive member function has the following properties:
 
-* it may *only* be called on prvalues;
+* it may *only* be called on prvalues, either explicitly via class member access or in a conversion;
 * it is *assumed* to destruct its operand, and thus suppresses emission of the call to destructor on its prvalue temporary.
-* it overloads with other conversions, and is preferred on prvalue temporaries.
+* it overloads with other member functions of the same name, and is preferred on prvalue temporaries.
 
 Building on this, a prvalue conversion operator (to the same class type) and prvalue assignment operator are added as (sixth and seventh) special member functions:
 
@@ -64,17 +65,17 @@ The elision rule is that when an id-expression appears in a return statement, in
 
 Usage on xvalues in user code is via a new library function, set out below.
 
-### 3.3. Destructive conversion operators
+### 3.3. Destructive member functions
 
-Any destructive conversion operator is `noexcept` by default, but may be marked `noexcept(false)`. In this case, if it throws it is required to leave its object argument in a destrucible state, since it is considered to have failed.
+Any destructive member function is `noexcept` by default, but may be marked `noexcept(false)`. In this case, if it throws it is required to leave its object argument in a destrucible state, since it is considered to have failed.
 
-A destructive conversion operator is expected to ensure that every base class and data member is destructed, either by destructor call syntax or by destructive move via a library function (see below). 
+A destructive member function is expected to ensure that every base class and data member is destructed, either by destructor call syntax or by destructive move via a library function (see below). 
 
 Alternatively if this is considered excessively unsafe, we suggest a syntax allowing the user to indicate which bases and members it expects to destruct within the body, the compiler destructing the remainder:
 
     struct D : B, C {
         int x, y;
-        operator long() ~ : ~B, ~x { x.~int(); B::~B(); return 0l; } // compiler destructs y, C
+        long destructure() ~ : ~B, ~x { x.~int(); B::~B(); return 0l; } // compiler destructs y, C
     };
 
 ### 3.4. Defaulted special member functions
