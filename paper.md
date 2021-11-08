@@ -75,7 +75,7 @@ Any destructive member function is `noexcept` by default, but may be marked `noe
 
 A destructive member function is expected to ensure that every base class and data member is destructed, either by destructor call syntax or by destructive move via a library function (see below). 
 
-Alternatively if this is considered excessively unsafe, we suggest a syntax allowing the user to indicate which bases and members it expects to destruct within the body, the compiler destructing the remainder:
+Alternatively if this is considered excessively unsafe, we suggest a syntax allowing the user to indicate which bases and members they intend to destruct within the body, the compiler destructing the remainder:
 
 ```c++
 struct D : B, C {
