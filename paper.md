@@ -71,16 +71,20 @@ Usage on xvalues in user code is via a new library function, set out below.
 
 ### 3.3. Destructive member functions
 
-Any destructive member function is `noexcept` by default, but may be marked `noexcept(false)`. In this case, if it throws it is required to leave its object argument in a destrucible state, since it is considered to have failed.
+Any destructive member function is `noexcept` by default, but may be marked `noexcept(false)`. In this case, if it throws it is required to leave its object argument in a destrucible state, since it is considered to have failed; the destructor will be called imminently (on the same prvalue temporary).
 
-A destructive member function is expected to ensure that every base class and data member is destructed, either by destructor call syntax or by destructive move via a library function (see below). 
+A destructive member function is, on success, expected to ensure that every base class and data member is destructed, either by destructor call syntax or by destructive move via a library function (see below). 
 
 Alternatively if this is considered excessively unsafe, we suggest a syntax allowing the user to indicate which bases and members they intend to destruct within the body, the compiler destructing the remainder:
 
 ```c++
 struct D : B, C {
     int x, y;
-    long destructure() ~ : ~B, ~x { x.~int(); B::~B(); return 0l; } // compiler destructs y, C
+    int destructure() ~ : ~B, ~x {
+        int x_ = std::move_and_destroy(std::move(x));
+        B::~B();
+        return x_ + y;
+    } // compiler destructs y, C
 };
 ```
 
