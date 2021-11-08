@@ -39,8 +39,10 @@ Finally, such a solution should work with other library facilities, such as `opt
 
 The proposal is that a member function (possibly a conversion operator) may be designated *destructive* by the `~` sigil, appearing in place of cvref qualification:
 
-    int S::destructure() ~;
-    S::operator int() ~;
+```c++
+int S::destructure() ~;
+S::operator int() ~;
+```
 
 A destructive member function has the following properties:
 
@@ -50,8 +52,10 @@ A destructive member function has the following properties:
 
 Building on this, a prvalue conversion operator (to the same class type) and prvalue assignment operator are added as (sixth and seventh) special member functions:
 
-    S::operator S() ~;
-    S& S::operator=(S);
+```c++
+S::operator S() ~;
+S& S::operator=(S);
+```
 
 (The latter is possible to write today; the change is to make it special.)
 
@@ -73,31 +77,37 @@ A destructive member function is expected to ensure that every base class and da
 
 Alternatively if this is considered excessively unsafe, we suggest a syntax allowing the user to indicate which bases and members it expects to destruct within the body, the compiler destructing the remainder:
 
-    struct D : B, C {
-        int x, y;
-        long destructure() ~ : ~B, ~x { x.~int(); B::~B(); return 0l; } // compiler destructs y, C
-    };
+```c++
+struct D : B, C {
+    int x, y;
+    long destructure() ~ : ~B, ~x { x.~int(); B::~B(); return 0l; } // compiler destructs y, C
+};
+```
+
+From an ABI perspective, a destructive member function is always to be regarded as callee-destroy, regardless of the usual ABI; that is, the caller is required to omit the destructor call if it would usually emit one.
 
 ### 3.4. Defaulted special member functions
 
 The special member functions are declared as defaulted or deleted as with the move constructor and move assignment operator; similarly for triviality.
 
-When defined or declared as defaulted, the default implementation for class types is memberwise. Since the default prvalue conversion operator is noexcept, there is no need to handle cleanup; `noexcept(true)` is ignored (or possibly ill-formed?).
+When defined or declared as defaulted, the implementation for class types is memberwise. Since the default prvalue conversion operator is noexcept, there is no need to handle cleanup; `noexcept(true)` is ignored (or possibly ill-formed?).
 
 For scalars, the builtin behavior is to return or assign the source value respectively; the source value is not altered.
 
+Regarding ABI, a class with trivial prvalue conversion operator may be passed in registers since its author has warranted that it is trivially relocatable. 
+
 ## 4. Library support
 
-### 4.1. Magic function
+### 4.1. New functions
 
-We propose non-ergonomic (for use by library authors only) magic function(s) for invoking destructive move on an object occupying a region of storage, possibly named as follows:
+We propose utility functions for invoking destructive move on an object occupying a region of storage, perhaps as follows:
 
-* `template<class T> constexpr T move_and_destroy_at(T*) noexcept(*see below*);`
+* `template<class T> constexpr T move_and_destroy(T&&) noexcept(*see below*);`
 * `template<class T> constexpr void construct_and_destroy_at(T*, T*) noexcept(*see below*);`
 
-The former constructs its prvalue return value by from its pointer argument indirected, invoking the prvalue conversion operator of `T` if available (not defaulted as deleted), otherwise a copy constructor (which may be a move constructor) as selected by overload resolution.
+`move_and_destroy` constructs its prvalue return value by from its xvalue argument, invoking the prvalue conversion operator of `T` if available (not defaulted as deleted), otherwise a copy constructor (which may be a move constructor) as selected by overload resolution followed by the destructor. This is the only mechanism for user code to invoke a destructive member function (specifically, the prvalue conversion operator) on an lvalue. It may throw if any of the invoked operations throw, in which case the lifetime of its xvalue argument continues.
 
-The latter is intended to offer the strong exception-safety guarantee, i.e. given on entry its first argument points to uninitialized storage suitable to hold `T` and its second argument points to a `T`, on success this state of affirs is reversed, while on failure it is preserved, and the `T` object retains its former value. If the prvalue conversion operator of `T` is noexcept that will be invoked; otherwise the move or copy constructor is invoked, via a temporary object if necessary for strong exception safety.
+The latter is intended to offer the strong exception-safety guarantee, i.e. given on entry its first argument points to uninitialized storage suitable to hold `T` and its second argument points to a `T`, on success this state of affairs is reversed, while on failure it is preserved, and the `T` object retains its former value. If the prvalue conversion operator of `T` is noexcept that will be invoked; otherwise the move or copy constructor is invoked followed by the destructor, via a temporary object if necessary for strong exception safety.
 
 Additionally, we propose concepts and associated template variables and type traits:
 
@@ -109,6 +119,25 @@ Additionally, we propose concepts and associated template variables and type tra
 ### 4.2. Standard library changes
 
 We suggest modifications and additions to the Standard library that may usefully employ this new facility.
+
+#### 4.2.1. Optional
+
+```c++
+T optional<T>::pop() [[pre: has_value()]] [[post: !has_value()]] {
+    ON_SUCCESSFUL_EXIT(engaged = false); // if pop() does not exit via exception
+    return move_and_destroy(move(value()));
+}
+```
+
+#### 4.2.2. Memory
+
+```c++
+unique_ptr<T>::operator unique_ptr() ~ = default;
+unique_ptr<T>& unique_ptr<T>::operator=(unique_ptr) = default;
+T* unique_ptr<T>::release() ~ noexcept { return get(); }
+```
+
+Ideally, the special member functions would be declared as defaulted and thus trivial; however this would be an ABI break.
 
 ## 5. Examples
 
