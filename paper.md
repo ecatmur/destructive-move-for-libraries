@@ -59,7 +59,7 @@ As usual, these special member functions may be declared or defined as defaulted
 
 ### 3.2. Usage
 
-It may fairly be asked why the prvalue conversion operator is necessary; after all, whenever a prvalue is used to initialize a variable it will initialize that variable directly without any need for an additional constructor call. The answer is that it can be invoked when an *xvalue* is to be moved and immediately destroyed, either by the compiler (optionally, as elision), or by library or user code, ensuring that the xvalue is not double-destructed.
+It may fairly be asked why the prvalue conversion operator is necessary; after all, whenever a prvalue is used to initialize a variable it will initialize that variable directly without any need for an additional constructor call. The answer is that it can be invoked when an *xvalue* is to be moved and immediately destroyed, either by the compiler (optionally, as elision), or by library or user code, where that code can ensure the xvalue is not double-destructed.
 
 The elision rule is that when an id-expression appears in a return statement, in addition to the option of calling its move constructor, the compiler may instead call its prvalue conversion operator, eliding its destructor.
 
