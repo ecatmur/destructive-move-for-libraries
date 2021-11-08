@@ -143,6 +143,15 @@ T* unique_ptr<T>::release() ~ noexcept { return get(); }
 
 Ideally, the special member functions would be declared as defaulted and thus trivial; however this would be an ABI break.
 
+#### 4.2.3. Tuple
+
+```c++
+struct S {
+    S(gsl::not_null<std::unique_ptr<int>>);
+};
+S s = std::make_from_tuple_r<S>([] { return std::tuple<gsl::not_null<std::unique_ptr<int>>>(std::unique_ptr(new int)); });
+```
+
 ## 5. Examples
 
 ## 6. Wording
